@@ -10,7 +10,7 @@ export default function VerifyOTP() {
   const dispatch = useDispatch();
 
   const location = useLocation();
-  const phone = location.state?.phone;   // from previous screen
+  const phone = `+91${location.state?.phone}`;   // from previous screen
 
   const handleVerify = () => {
     if (otp.length !== 6) {
@@ -21,7 +21,7 @@ export default function VerifyOTP() {
     dispatch(verifyPhoneOTP({ phone, otp }))
       .unwrap()
       .then(() => {
-        navigate("/pilot-dashboard");
+        navigate("/document-center");
       });
   };
 

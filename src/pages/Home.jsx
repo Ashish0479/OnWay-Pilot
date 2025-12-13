@@ -29,7 +29,7 @@ export default function Home() {
         </p>
 
         <button
-          onClick={() => navigate("/pilot-register")}
+          onClick={() => navigate("/pilot-login")}
           className="mt-6 px-6 py-3 rounded-2xl bg-[#00ADB5] text-white font-semibold hover:bg-[#00ADB5]/90 shadow-md transition"
         >
           Join as Pilot

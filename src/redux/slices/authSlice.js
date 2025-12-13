@@ -104,8 +104,10 @@ export const sendPhoneOTP = createAsyncThunk(
 export const verifyPhoneOTP = createAsyncThunk(
   '/auth/verify-phone-otp',
   async ({ phone, otp }, { rejectWithValue }) => {
+    console.log("incoming data to the thunk", phone, otp);
     try {
-      const response = await axiosInstance.post('/auth/verify-phone-otp', { contactNumber: cd frontendphone, otp });
+      const response = await axiosInstance.post('/auth/verify-phone-otp', { contactNumber: phone, otp });
+      console.log("response from verify otp thunk", response);
       const token = response?.data?.data?.token;
 
       if (token) {
