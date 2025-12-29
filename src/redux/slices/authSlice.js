@@ -29,7 +29,7 @@ export const createAccount = createAsyncThunk(
   async (data, { rejectWithValue }) => {
     console.log("incoming data to the thunk", data);
     try {
-      const response = await axiosInstance.post('/users', data);
+      const response = await axiosInstance.post('/rider/register', data);
 
       toast.promise(Promise.resolve(response), {
         success: (res) => res?.data?.message || "Account created successfully",
@@ -83,7 +83,7 @@ export const sendPhoneOTP = createAsyncThunk(
   '/auth/sendOTP',
   async (phone, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.post('/auth/send-phone-otp', { contactNumber: phone });
+      const response = await axiosInstance.post('/auth/send-rider-otp', { phoneNumber: phone });
 
       toast.promise(Promise.resolve(response), {
         success: (res) => res?.data?.message || "OTP sent successfully",
@@ -106,11 +106,15 @@ export const verifyPhoneOTP = createAsyncThunk(
   async ({ phone, otp }, { rejectWithValue }) => {
     console.log("incoming data to the thunk", phone, otp);
     try {
-      const response = await axiosInstance.post('/auth/verify-phone-otp', { contactNumber: phone, otp });
-      console.log("response from verify otp thunk", response);
+      const response = await axiosInstance.post('/auth/verify-rider-otp', { phoneNumber: phone, otp });
+      
       const token = response?.data?.data?.token;
 
       if (token) {
+        localStorage.setItem("isLoggedIn", true);
+        localStorage.setItem("data", JSON.stringify(response?.data?.data));
+        localStorage.setItem("role", "pilot");
+      
         localStorage.setItem("authToken", token);
       }
 

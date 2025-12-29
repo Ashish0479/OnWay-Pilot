@@ -21,7 +21,7 @@ export default function VerifyOTP() {
     dispatch(verifyPhoneOTP({ phone, otp }))
       .unwrap()
       .then(() => {
-        navigate("/document-center");
+        navigate("/dashboard");
       });
   };
 

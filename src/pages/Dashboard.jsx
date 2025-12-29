@@ -1,24 +1,105 @@
-import React, { useState } from "react";
-import { Menu, Bell, Bike, Clock, IndianRupee, MapPin, LogOut, CheckCircle } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import {
+  Menu,
+  Bell,
+  Bike,
+  Clock,
+  IndianRupee,
+  MapPin,
+  LogOut,
+  CheckCircle
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import socket from "../socket";
+import logout from "../redux/slices/authSlice"
 
 export default function Dashboard() {
   const navigate = useNavigate();
 
+  const pilotData = JSON.parse(localStorage.getItem("data"));
+  const pilotId = pilotData?.user?._id;
+
   const [online, setOnline] = useState(false);
   const [hasRide, setHasRide] = useState(false);
+  const [rideData, setRideData] = useState(null);
+
+ useEffect(() => {
+  if (!online || !pilotId) return;
+
+  socket.connect();
+
+  socket.on("connect", () => {
+    console.log("🟢 Pilot socket connected:", socket.id);
+    socket.emit("pilot_online", pilotId);
+  });
+
+  socket.on("new_ride_request", (ride) => {
+    console.log("🚨 New ride received:", ride);
+    setRideData(ride);
+    setHasRide(true);
+  });
+
+  return () => {
+    socket.off("new_ride_request");
+    socket.disconnect();
+  };
+}, [online, pilotId]);
+
+  const toggleOnline = () => {
+    const newStatus = !online;
+    setOnline(newStatus);
+
+    if (newStatus) {
+      socket.emit("pilot_online", pilotId);
+    } else {
+      socket.emit("pilot_offline", pilotId);
+    }
+  };
+
+  const acceptRide = () => {
+
+    if (!rideData) return;
+
+    socket.emit("pilot_accept", {
+      rideId: rideData.rideId,
+      pilotId,
+      userId: rideData.userId
+    });
+
+    setHasRide(false);
+    setRideData(null);
+  };
+
+  const rejectRide = () => {
+    if (!rideData) return;
+
+    socket.emit("pilot_reject", {
+      rideId: rideData._id,
+      pilotId,
+      userId: rideData.userId
+    });
+
+    setHasRide(false);
+    setRideData(null);
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    socket.disconnect();
+    navigate("/");
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#00ADB5]/10 to-white pb-14">
 
-      {/* Navbar */}
+      
       <nav className="w-full bg-white px-5 py-3 shadow-sm flex justify-between items-center sticky top-0">
         <Menu className="text-[#00ADB5]" size={26} />
         <h1 className="text-xl font-bold text-[#00ADB5]">OnWay Pilot</h1>
         <Bell className="text-gray-600" size={22} />
       </nav>
 
-      {/* Status + Online Switch */}
+      
       <div className="px-5 mt-4">
         <div className="flex justify-between items-center bg-white shadow-sm p-4 rounded-2xl">
           <div>
@@ -33,7 +114,7 @@ export default function Dashboard() {
               type="checkbox"
               className="sr-only peer"
               checked={online}
-              onChange={() => setOnline(!online)}
+              onChange={toggleOnline}
             />
             <div className="w-11 h-6 bg-gray-300 rounded-full peer peer-checked:bg-[#00ADB5]"></div>
             <span className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full peer-checked:translate-x-5 transition"></span>
@@ -41,7 +122,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Earnings & Stats */}
+      
       <div className="px-5 mt-4 grid grid-cols-2 gap-3">
         <div className="bg-white p-4 rounded-2xl shadow-sm">
           <IndianRupee className="text-[#00ADB5]" />
@@ -55,55 +136,50 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Live Ride Request */}
-      {hasRide && (
+      
+      {hasRide && rideData && (
         <div className="w-[90%] mt-5 mx-auto bg-white rounded-2xl p-4 shadow-md border border-[#00ADB5]/30">
           <h3 className="font-semibold mb-2">New Ride Request</h3>
 
           <div className="flex items-center mb-3">
             <MapPin className="text-green-600 mr-2" />
-            <p className="text-gray-700 text-sm">Pickup: Sector 14, Kurukshetra</p>
+            <p className="text-gray-700 text-sm">
+              Pickup: {rideData.pickup.address}
+            </p>
           </div>
 
           <div className="flex items-center mb-3">
             <MapPin className="text-red-600 mr-2" />
-            <p className="text-gray-700 text-sm">Drop: UIET College Gate</p>
+            <p className="text-gray-700 text-sm">
+              Drop: {rideData.drop.address}
+            </p>
           </div>
 
           <div className="flex justify-between">
-            <button className="bg-green-600 text-white px-4 py-2 rounded-xl w-[48%]">
+            <button
+              onClick={acceptRide}
+              className="bg-green-600 text-white px-4 py-2 rounded-xl w-[48%]"
+            >
               Accept
             </button>
-            <button className="bg-red-500 text-white px-4 py-2 rounded-xl w-[48%]">
+            <button
+              onClick={rejectRide}
+              className="bg-red-500 text-white px-4 py-2 rounded-xl w-[48%]"
+            >
               Reject
             </button>
           </div>
         </div>
       )}
 
-      {/* Quick Actions */}
+      
       <div className="mt-8 px-5">
         <h2 className="text-lg font-semibold text-gray-800 mb-3">Quick Actions</h2>
 
         <div className="space-y-3">
-          <ActionItem
-            icon={<Clock size={22} />}
-            label="Ride History"
-            onClick={() => navigate("/pilot-history")}
-          />
-          <ActionItem
-            icon={<CheckCircle size={22} />}
-            label="Verify Documents"
-            onClick={() => navigate("/pilot-documents")}
-          />
-          <ActionItem
-            icon={<Bell size={22} />}
-            label="Notifications"
-          />
-          <ActionItem
-            icon={<LogOut size={22} />}
-            label="Logout"
-          />
+          <ActionItem icon={<Clock size={22} />} label="Ride History" />
+          <ActionItem icon={<CheckCircle size={22} />} label="Verify Documents" />
+          <ActionItem icon={<LogOut size={22} />} label="Logout" onClick={handleLogout} />
         </div>
       </div>
     </div>
@@ -120,7 +196,6 @@ function ActionItem({ icon, label, onClick }) {
         {icon}
         <p className="font-medium text-gray-700">{label}</p>
       </div>
-      
     </div>
   );
 }
