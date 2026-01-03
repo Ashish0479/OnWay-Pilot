@@ -45,6 +45,29 @@ export default function Dashboard() {
   };
 }, [online, pilotId]);
 
+useEffect(() => {
+  if (!navigator.geolocation) return;
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      // backend ko bhejo
+      socket.emit("pilot_location_init", {
+        pilotId,
+        lat,
+        lng
+      });
+    },
+    (err) => {
+      console.log("Pilot location error", err.message);
+    },
+    { enableHighAccuracy: false }
+  );
+}, []);
+
+
   const toggleOnline = () => {
     const newStatus = !online;
     setOnline(newStatus);
@@ -153,6 +176,13 @@ export default function Dashboard() {
             <p className="text-gray-700 text-sm">
               Drop: {rideData.drop.address}
             </p>
+          </div>
+
+          <div>
+            <IndianRupee className="text-gray-700 mr-2 inline" />
+            <span className="text-gray-700 font-medium">
+              Fare: ₹{rideData.fare}
+            </span>
           </div>
 
           <div className="flex justify-between">

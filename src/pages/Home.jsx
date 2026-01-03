@@ -44,7 +44,7 @@ export default function Home() {
           <p className="text-gray-600 mt-1">Book rides using our user app</p>
 
           <button
-            onClick={() => navigate("/")}
+            onClick={() => window.location.href = "http://localhost:5173"}
             className="mt-4 w-full py-3 bg-[#00ADB5] text-white rounded-xl font-medium hover:bg-[#0099A5] transition shadow"
           >
             Open User App
