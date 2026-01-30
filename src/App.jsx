@@ -16,6 +16,10 @@ import { Routes, Route } from "react-router-dom";
 
 
 export default function App() {
+  if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js");
+}
+
 
   return (
     <>

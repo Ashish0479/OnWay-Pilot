@@ -7,7 +7,6 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col items-center bg-gradient-to-b from-[#00ADB5]/10 to-white">
       
-      {/* Navbar */}
       <nav className="w-full bg-white shadow-md px-5 py-3 flex justify-between items-center">
         <h1 className="text-2xl font-bold text-[#00ADB5]">OnWay Pilot</h1>
         <button
@@ -18,7 +17,6 @@ export default function Home() {
         </button>
       </nav>
 
-      {/* Hero Section */}
       <section className="text-center mt-10 w-[90%] md:w-[70%]">
         <h2 className="text-3xl md:text-4xl font-bold text-gray-800 leading-tight">
           Drive, Earn, and Grow with{" "}
@@ -36,7 +34,7 @@ export default function Home() {
         </button>
       </section>
 
-      {/* ---------------------- CUSTOMER SECTION ---------------------- */}
+      
       <section className="w-full bg-white mt-10 py-10 px-6 flex justify-center">
         <div className="w-full max-w-md text-center bg-gray-50 rounded-2xl p-6 shadow-sm border border-gray-200">
           
@@ -51,7 +49,7 @@ export default function Home() {
           </button>
         </div>
       </section>
-      {/* --------------------------------------------------------------- */}
+      
 
     </div>
   );

@@ -34,7 +34,7 @@ export default function PilotSignup() {
     }
     dispatch(createAccount(form));
 
-    // 🔥 Backend connect yahin hoga
+    //  Backend connect yahin hoga
     console.log("Pilot Signup Data:", form);
     // dispatch(pilotSignup(form))
 

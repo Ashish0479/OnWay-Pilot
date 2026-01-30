@@ -34,7 +34,7 @@ export default function VerifyOTP() {
       </div>
 
       <h1 className="text-2xl font-bold mb-2">Verify OTP</h1>
-      <p className="text-gray-500 mb-6">OTP sent to +91 {phone}</p>
+      <p className="text-gray-500 mb-6">OTP sent to  {phone}</p>
 
       <input
         type="number"

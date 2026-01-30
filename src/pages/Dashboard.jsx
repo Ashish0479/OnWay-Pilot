@@ -22,19 +22,60 @@ export default function Dashboard() {
   const [online, setOnline] = useState(false);
   const [hasRide, setHasRide] = useState(false);
   const [rideData, setRideData] = useState(null);
+    async function enablePush() {
+    try {
+      if (!("serviceWorker" in navigator)) return;
+      if (!("PushManager" in window)) return;
+
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        console.log(" Notification permission denied");
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+
+      const existingSub = await registration.pushManager.getSubscription();
+      if (existingSub) {
+        console.log(" Push already subscribed");
+        return;
+      }
+
+      const sub = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY
+      });
+
+      await fetch("http://localhost:5500/push/subscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("authToken")}`
+        },
+        body: JSON.stringify(sub)
+      });
+
+      console.log(" Push enabled for pilot");
+    } catch (err) {
+      console.error("Push error:", err.message);
+    }
+  }
+
 
  useEffect(() => {
+  enablePush();
+
   if (!online || !pilotId) return;
 
   socket.connect();
 
   socket.on("connect", () => {
-    console.log("🟢 Pilot socket connected:", socket.id);
+    console.log(" Pilot socket connected:", socket.id);
     socket.emit("pilot_online", pilotId);
   });
 
   socket.on("new_ride_request", (ride) => {
-    console.log("🚨 New ride received:", ride);
+    console.log(" New ride received:", ride);
     setRideData(ride);
     setHasRide(true);
   });
@@ -45,6 +86,10 @@ export default function Dashboard() {
   };
 }, [online, pilotId]);
 
+
+
+
+
 useEffect(() => {
   if (!navigator.geolocation) return;
 
@@ -53,7 +98,7 @@ useEffect(() => {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
 
-      // backend ko bhejo
+      
       socket.emit("pilot_location_init", {
         pilotId,
         lat,
@@ -68,16 +113,12 @@ useEffect(() => {
 }, []);
 
 
-  const toggleOnline = () => {
-    const newStatus = !online;
-    setOnline(newStatus);
+  const toggleOnline = async () => {
+  const newStatus = !online;
+  setOnline(newStatus);
 
-    if (newStatus) {
-      socket.emit("pilot_online", pilotId);
-    } else {
-      socket.emit("pilot_offline", pilotId);
-    }
-  };
+};
+
 
   const acceptRide = () => {
 
