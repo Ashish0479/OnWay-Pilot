@@ -54,11 +54,15 @@ export const login = createAsyncThunk(
   '/auth/login',
   async (data, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.post('/auth/login', data);
+      const response = await axiosInstance.post('/auth/rider-login', data);
       const token = response?.data?.data?.token;
+      
 
       if (token) {
         localStorage.setItem("authToken", token);
+        localStorage.setItem("isLoggedIn", true);
+        localStorage.setItem("data", JSON.stringify(response?.data?.data));
+        localStorage.setItem("role", "pilot");
       }
 
       toast.promise(Promise.resolve(response), {
@@ -113,6 +117,7 @@ export const verifyPhoneOTP = createAsyncThunk(
       if (token) {
         localStorage.setItem("isLoggedIn", true);
         localStorage.setItem("data", JSON.stringify(response?.data?.data));
+        console.log("data:", response?.data?.data);
         localStorage.setItem("role", "pilot");
       
         localStorage.setItem("authToken", token);
@@ -136,7 +141,7 @@ export const verifyPhoneOTP = createAsyncThunk(
 export const logout = createAsyncThunk('/auth/logout', async () => {
   console.log("incoming data to the thunk");
   try {
-    const response = axiosInstance.post('/auth/logout');
+    const response = axiosInstance.post('/auth/rider-logout');
     toast.promise(response, {
       success: (resolvedPromise) => {
         return resolvedPromise?.data?.message;

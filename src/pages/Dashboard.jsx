@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useRef } from "react";
 import {
   Menu,
   Bell,
@@ -7,117 +7,123 @@ import {
   IndianRupee,
   MapPin,
   LogOut,
-  CheckCircle
+  CheckCircle, LocationEditIcon as LocateIcon
 } from "lucide-react";
+import {
+  GoogleMap,
+  useLoadScript,
+  DirectionsRenderer, Marker
+
+} from "@react-google-maps/api";
 import { useNavigate } from "react-router-dom";
 import socket from "../socket";
 import logout from "../redux/slices/authSlice"
+
+
 
 export default function Dashboard() {
   const navigate = useNavigate();
 
   const pilotData = JSON.parse(localStorage.getItem("data"));
-  const pilotId = pilotData?.user?._id;
+  console.log("pilot data in dashboard", pilotData);
+  const pilotId = pilotData?.id;
 
   const [online, setOnline] = useState(false);
   const [hasRide, setHasRide] = useState(false);
   const [rideData, setRideData] = useState(null);
-    async function enablePush() {
-    try {
-      if (!("serviceWorker" in navigator)) return;
-      if (!("PushManager" in window)) return;
-
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        console.log(" Notification permission denied");
-        return;
-      }
-
-      const registration = await navigator.serviceWorker.ready;
-
-      const existingSub = await registration.pushManager.getSubscription();
-      if (existingSub) {
-        console.log(" Push already subscribed");
-        return;
-      }
-
-      const sub = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY
-      });
-
-      await fetch("http://localhost:5500/push/subscribe", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("authToken")}`
-        },
-        body: JSON.stringify(sub)
-      });
-
-      console.log(" Push enabled for pilot");
-    } catch (err) {
-      console.error("Push error:", err.message);
-    }
-  }
-
-
- useEffect(() => {
-  enablePush();
-
-  if (!online || !pilotId) return;
-
-  socket.connect();
-
-  socket.on("connect", () => {
-    console.log(" Pilot socket connected:", socket.id);
-    socket.emit("pilot_online", pilotId);
+  const mapContainerStyle = {
+  width: "100%",
+  maxWidth: "400px",
+  height: "300px",
+  borderRadius: "20px",
+  margin: "0 auto",
+};
+const center = { lat: 28.6139, lng: 77.209 };
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    libraries: ["places"],
   });
+ const [directions, setDirections] = useState(null);
+   const mapRef = useRef();
 
-  socket.on("new_ride_request", (ride) => {
-    console.log(" New ride received:", ride);
-    setRideData(ride);
-    setHasRide(true);
-  });
 
-  return () => {
-    socket.off("new_ride_request");
-    socket.disconnect();
-  };
-}, [online, pilotId]);
+  useEffect(() => {
 
 
 
+    if (!online || !pilotId) return;
 
+    socket.connect();
 
-useEffect(() => {
-  if (!navigator.geolocation) return;
+    socket.on("connect", () => {
+      console.log(" Pilot socket connected:", socket.id);
+      socket.emit("pilot_online", pilotId);
+    });
 
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-
+    socket.on("new_ride_request", (ride) => {
+      console.log(" New ride received:", ride);
       
-      socket.emit("pilot_location_init", {
-        pilotId,
-        lat,
-        lng
-      });
-    },
-    (err) => {
-      console.log("Pilot location error", err.message);
-    },
-    { enableHighAccuracy: false }
-  );
-}, []);
+      setRideData(ride);
+      setHasRide(true);
+    });
+
+    return () => {
+      socket.off("new_ride_request");
+      socket.disconnect();
+    };
+  }, [online, pilotId]);
+
+
+
+
+  useEffect(() => {
+    if(!rideData) return;
+      if (rideData.pickup.address && rideData.drop.address) {
+        const service = new google.maps.DirectionsService();
+        service.route(
+          {
+            origin: rideData.pickup.address,
+            destination: rideData.drop.address,
+            travelMode: google.maps.TravelMode.DRIVING,
+          },
+          (result, status) => {
+            if (status === "OK" && result) {
+              setDirections(result);
+            }
+          }
+        );
+      }
+    }, [rideData]);
+  
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+
+        socket.emit("pilot_location_init", {
+          pilotId,
+          lat,
+          lng
+        });
+      },
+      (err) => {
+        console.log("Pilot location error", err.message);
+      },
+      { enableHighAccuracy: false }
+    );
+  }, []);
 
 
   const toggleOnline = async () => {
-  const newStatus = !online;
-  setOnline(newStatus);
+    const newStatus = !online;
+    setOnline(newStatus);
 
-};
+  };
 
 
   const acceptRide = () => {
@@ -146,6 +152,10 @@ useEffect(() => {
     setHasRide(false);
     setRideData(null);
   };
+  if(!isLoaded){
+    return <div>Loading...</div>;
+  }
+
 
   const handleLogout = () => {
     localStorage.clear();
@@ -156,14 +166,15 @@ useEffect(() => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#00ADB5]/10 to-white pb-14">
 
-      
+
       <nav className="w-full bg-white px-5 py-3 shadow-sm flex justify-between items-center sticky top-0">
         <Menu className="text-[#00ADB5]" size={26} />
         <h1 className="text-xl font-bold text-[#00ADB5]">OnWay Pilot</h1>
+        <LocateIcon className="text-gray-600 hover:text-gray-900" size={22} />
         <Bell className="text-gray-600" size={22} />
       </nav>
 
-      
+
       <div className="px-5 mt-4">
         <div className="flex justify-between items-center bg-white shadow-sm p-4 rounded-2xl">
           <div>
@@ -186,7 +197,7 @@ useEffect(() => {
         </div>
       </div>
 
-      
+
       <div className="px-5 mt-4 grid grid-cols-2 gap-3">
         <div className="bg-white p-4 rounded-2xl shadow-sm">
           <IndianRupee className="text-[#00ADB5]" />
@@ -200,7 +211,21 @@ useEffect(() => {
         </div>
       </div>
 
-      
+       {hasRide && rideData && (
+      <div className="mt-4 w-[90%] rounded-2xl overflow-hidden shadow-lg">
+        <GoogleMap
+          mapContainerStyle={mapContainerStyle}
+          zoom={12}
+          center={center}
+          onLoad={(map) => (mapRef.current = map)}
+        >
+          {directions && <DirectionsRenderer directions={directions} />}
+
+          
+
+        </GoogleMap>
+      </div>)}
+
       {hasRide && rideData && (
         <div className="w-[90%] mt-5 mx-auto bg-white rounded-2xl p-4 shadow-md border border-[#00ADB5]/30">
           <h3 className="font-semibold mb-2">New Ride Request</h3>
@@ -243,7 +268,7 @@ useEffect(() => {
         </div>
       )}
 
-      
+
       <div className="mt-8 px-5">
         <h2 className="text-lg font-semibold text-gray-800 mb-3">Quick Actions</h2>
 

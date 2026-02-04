@@ -10,7 +10,7 @@ export default function Home() {
       <nav className="w-full bg-white shadow-md px-5 py-3 flex justify-between items-center">
         <h1 className="text-2xl font-bold text-[#00ADB5]">OnWay Pilot</h1>
         <button
-          onClick={() => navigate("/pilot-login")}
+          onClick={() => navigate("/login")}
           className="px-4 py-1.5 rounded-xl bg-[#00ADB5] text-white font-medium hover:bg-[#00ADB5]/90"
         >
           Login

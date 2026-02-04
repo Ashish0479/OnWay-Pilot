@@ -8,6 +8,7 @@ import DocumentCenter from './pages/docs.jsx';
 import PhoneLogin from './pages/OTPLogin.jsx';
 import VerifyOTP from './pages/OTPvarify.jsx';
 import PilotProtectedRoute from './pages/protected.jsx';
+import EmailPasswordLoginPage from './pages/login.jsx';
 import './index.css'; 
 
 import { Routes, Route } from "react-router-dom";
@@ -41,6 +42,7 @@ export default function App() {
          <Route path="/document-center" element={<DocumentCenter />} />
          <Route path="/pilot-login" element={<PhoneLogin />} />
          <Route path="/pilot-verify-otp" element={<VerifyOTP />} />
+         <Route path="/login" element={<EmailPasswordLoginPage />} />
         
 
       </Routes>
