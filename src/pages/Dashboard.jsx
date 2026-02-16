@@ -1,4 +1,4 @@
-import React, { useState, useEffect,useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Menu,
   Bell,
@@ -31,20 +31,28 @@ export default function Dashboard() {
   const [online, setOnline] = useState(false);
   const [hasRide, setHasRide] = useState(false);
   const [rideData, setRideData] = useState(null);
+  const [pilotLocation, setPilotLocation] = useState(null);
+  const [locationInput, setLocationInput] = useState("");
+  const [locationError, setLocationError] = useState(false);
+  const [assignedUser, setAssignedUser] = useState(null);
+  const [routeToUser, setRouteToUser] = useState(null);
+
+
+
   const mapContainerStyle = {
-  width: "100%",
-  maxWidth: "400px",
-  height: "300px",
-  borderRadius: "20px",
-  margin: "0 auto",
-};
-const center = { lat: 28.6139, lng: 77.209 };
+    width: "100%",
+    maxWidth: "400px",
+    height: "300px",
+    borderRadius: "20px",
+    margin: "0 auto",
+  };
+  const center = { lat: 28.6139, lng: 77.209 };
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
     libraries: ["places"],
   });
- const [directions, setDirections] = useState(null);
-   const mapRef = useRef();
+  const [directions, setDirections] = useState(null);
+  const mapRef = useRef();
 
 
   useEffect(() => {
@@ -62,10 +70,18 @@ const center = { lat: 28.6139, lng: 77.209 };
 
     socket.on("new_ride_request", (ride) => {
       console.log(" New ride received:", ride);
-      
+
       setRideData(ride);
       setHasRide(true);
     });
+    socket.on("pilot_ride_assigned", (data) => {
+      setAssignedUser(data.user);
+      console.log("Assigned user data:", data.user);
+  
+
+      
+    });
+
 
     return () => {
       socket.off("new_ride_request");
@@ -77,24 +93,83 @@ const center = { lat: 28.6139, lng: 77.209 };
 
 
   useEffect(() => {
-    if(!rideData) return;
-      if (rideData.pickup.address && rideData.drop.address) {
-        const service = new google.maps.DirectionsService();
-        service.route(
-          {
-            origin: rideData.pickup.address,
-            destination: rideData.drop.address,
-            travelMode: google.maps.TravelMode.DRIVING,
-          },
-          (result, status) => {
-            if (status === "OK" && result) {
-              setDirections(result);
-            }
+    if (!rideData) return;
+    if (rideData.pickup.address && rideData.drop.address) {
+      const service = new google.maps.DirectionsService();
+      service.route(
+        {
+          origin: rideData.pickup.address,
+          destination: rideData.drop.address,
+          travelMode: google.maps.TravelMode.DRIVING,
+        },
+        (result, status) => {
+          if (status === "OK" && result) {
+            setDirections(result);
           }
-        );
+        }
+      );
+    }
+  }, [rideData]);
+
+  /* ----------------------- AUTO LOCATION (GPS) ----------------------- */
+
+  useEffect(() => {
+    if (!navigator.geolocation || !pilotId) {
+      setLocationError(true);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+          if (status === "OK" && results[0]) {
+            const address = results[0].formatted_address;
+
+            setPilotLocation({ lat, lng });
+            setLocationInput(address);
+
+            socket.emit("pilot_location_update", {
+              pilotId,
+              lat,
+              lng,
+            });
+          }
+        });
+      },
+      () => {
+        setLocationError(true);
+      },
+      { enableHighAccuracy: true }
+    );
+  }, []);
+
+  /* -------------------- MANUAL LOCATION (ADDRESS → LAT/LNG) -------------------- */
+
+  const handleManualLocation = () => {
+    if (!locationInput) return;
+
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address: locationInput }, (results, status) => {
+      if (status === "OK" && results[0]) {
+        const lat = results[0].geometry.location.lat();
+        const lng = results[0].geometry.location.lng();
+
+        setPilotLocation({ lat, lng });
+
+        socket.emit("pilot_location_update", {
+          pilotId,
+          lat,
+          lng,
+        });
+      } else {
+        alert("Invalid location");
       }
-    }, [rideData]);
-  
+    });
+  };
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -103,6 +178,7 @@ const center = { lat: 28.6139, lng: 77.209 };
       (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
+        console.log("Pilot location:", lat, lng);
 
 
         socket.emit("pilot_location_init", {
@@ -119,6 +195,7 @@ const center = { lat: 28.6139, lng: 77.209 };
   }, []);
 
 
+
   const toggleOnline = async () => {
     const newStatus = !online;
     setOnline(newStatus);
@@ -133,9 +210,10 @@ const center = { lat: 28.6139, lng: 77.209 };
     socket.emit("pilot_accept", {
       rideId: rideData.rideId,
       pilotId,
-      userId: rideData.userId
+      userId: rideData.userId,
+      pilotLocation
     });
-
+    console.log("pilotLocation sent on accept:", pilotLocation);
     setHasRide(false);
     setRideData(null);
   };
@@ -152,7 +230,7 @@ const center = { lat: 28.6139, lng: 77.209 };
     setHasRide(false);
     setRideData(null);
   };
-  if(!isLoaded){
+  if (!isLoaded) {
     return <div>Loading...</div>;
   }
 
@@ -171,6 +249,13 @@ const center = { lat: 28.6139, lng: 77.209 };
         <Menu className="text-[#00ADB5]" size={26} />
         <h1 className="text-xl font-bold text-[#00ADB5]">OnWay Pilot</h1>
         <LocateIcon className="text-gray-600 hover:text-gray-900" size={22} />
+        <input
+          value={locationInput}
+          onChange={(e) => setLocationInput(e.target.value)}
+          onBlur={handleManualLocation}
+          placeholder="Enter your location"
+          className="border-b outline-none w-30 text-sm"
+        />
         <Bell className="text-gray-600" size={22} />
       </nav>
 
@@ -211,20 +296,29 @@ const center = { lat: 28.6139, lng: 77.209 };
         </div>
       </div>
 
-       {hasRide && rideData && (
-      <div className="mt-4 w-[90%] rounded-2xl overflow-hidden shadow-lg">
-        <GoogleMap
-          mapContainerStyle={mapContainerStyle}
-          zoom={12}
-          center={center}
-          onLoad={(map) => (mapRef.current = map)}
-        >
-          {directions && <DirectionsRenderer directions={directions} />}
+      {hasRide && rideData && (
+        <div className="mt-4 w-[90%] rounded-2xl overflow-hidden shadow-lg">
+          <GoogleMap
+            mapContainerStyle={mapContainerStyle}
+            zoom={12}
+            center={center}
+            onLoad={(map) => (mapRef.current = map)}
+          >
+            {directions && <DirectionsRenderer directions={directions} />}
 
-          
+            {pilotLocation && (
+              <Marker
+                position={{
+                  lat: Number(pilotLocation.lat),
+                  lng: Number(pilotLocation.lng),
+                }}
+              />
+            )}
 
-        </GoogleMap>
-      </div>)}
+
+
+          </GoogleMap>
+        </div>)}
 
       {hasRide && rideData && (
         <div className="w-[90%] mt-5 mx-auto bg-white rounded-2xl p-4 shadow-md border border-[#00ADB5]/30">
@@ -267,6 +361,15 @@ const center = { lat: 28.6139, lng: 77.209 };
           </div>
         </div>
       )}
+      {assignedUser && (
+        <div className="bg-white p-4 rounded-xl shadow-sm w-[90%] mx-auto mt-4">
+          <p className="font-semibold text-[#00ADB5]">👤 User Details</p>
+          <p>Name: {assignedUser.name}</p>
+          <p>Phone: {assignedUser.phone}</p>
+
+        </div>
+      )}
+
 
 
       <div className="mt-8 px-5">
