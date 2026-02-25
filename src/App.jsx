@@ -12,6 +12,8 @@ import EmailPasswordLoginPage from './pages/login.jsx';
 import './index.css'; 
 
 import { Routes, Route } from "react-router-dom";
+import { Pi } from 'lucide-react';
+import PilotRideHistoryPage from './pages/PilotRideHistoryPage.jsx';
 
 
 
@@ -43,6 +45,7 @@ export default function App() {
          <Route path="/pilot-login" element={<PhoneLogin />} />
          <Route path="/pilot-verify-otp" element={<VerifyOTP />} />
          <Route path="/login" element={<EmailPasswordLoginPage />} />
+         <Route path="/history" element={<PilotProtectedRoute><PilotRideHistoryPage /></PilotProtectedRoute>} />
         
 
       </Routes>

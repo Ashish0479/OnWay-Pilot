@@ -20,18 +20,25 @@ const pilotSlice = createSlice({
     totalEarnings: 0,
     todaysEarnings: 0,
     rideHistory: [],
-    status: "idle"
+    status: "idle",
   },
   reducers: {},
   extraReducers: (builder) => {
     builder
+      .addCase(fetchDashboard.pending, (state) => {
+        state.status = "loading";
+      })
       .addCase(fetchDashboard.fulfilled, (state, action) => {
+        state.status = "success";
         state.totalRides = action.payload.totalRides;
         state.totalEarnings = action.payload.totalEarnings;
         state.todaysEarnings = action.payload.todaysEarnings;
         state.rideHistory = action.payload.rideHistory;
+      })
+      .addCase(fetchDashboard.rejected, (state) => {
+        state.status = "failed";
       });
-  }
+  },
 });
 
 export default pilotSlice.reducer;

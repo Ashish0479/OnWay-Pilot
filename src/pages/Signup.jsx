@@ -39,7 +39,7 @@ export default function PilotSignup() {
     // dispatch(pilotSignup(form))
 
     alert("Signup successfull");
-    navigate("/document-center");
+    navigate("/login");
   };
 
   return (

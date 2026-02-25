@@ -7,11 +7,11 @@ import {
   IndianRupee,
   MapPin,
   LogOut,
-  CheckCircle, LocationEditIcon as LocateIcon
+  CheckCircle, LocationEditIcon as LocateIcon, Wallet as Purse
 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchDashboard } from "../redux/slices/dashboardSlice";
-import  PilotRideHistory  from "./PilotRideHistory";
+
 
 import {
   GoogleMap,
@@ -52,6 +52,14 @@ export default function Dashboard() {
   );
 
   const { rideHistory } = useSelector((state) => state.pilot);
+  const todayEarning = todaysEarnings.toFixed(2)
+  const totalEarning = totalEarnings.toFixed(2)
+  const sortedRides = [...(rideHistory || [])].sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  );
+  const totalCommision = sortedRides.reduce((sum, ride) => sum + (ride.commission || 0), 0);
+  const Commision = totalCommision.toFixed(2)
+
 
 
   const mapContainerStyle = {
@@ -228,6 +236,38 @@ export default function Dashboard() {
     );
   }, []);
 
+  useEffect(() => {
+  if (!("serviceWorker" in navigator)) return;
+
+  async function setupPush() {
+    const registration = await navigator.serviceWorker.register("/sw.js");
+
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return;
+
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(
+        import.meta.env.VITE_VAPID_PUBLIC_KEY
+      ),
+    });
+
+    await fetch(`${import.meta.env.VITE_BASE_URL}/rider/save-subscription`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+      },
+      body: JSON.stringify({
+        pilotId,
+        subscription,
+      }),
+    });
+  }
+
+  setupPush();
+}, []);
+
 
 
   const toggleOnline = async () => {
@@ -318,6 +358,8 @@ export default function Dashboard() {
             </p>
           </div>
 
+
+
           <label className="relative inline-flex items-center cursor-pointer">
             <input
               type="checkbox"
@@ -331,12 +373,37 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/**total earnigs and commision to pay for getting rides in future */}
+      <div className="px-5 mt-4 grid grid-cols-2 gap-3">
+        <div className="bg-white p-4 rounded-2xl shadow-sm">
+          <IndianRupee className="text-[#00ADB5]" />
+          <p className="text-gray-700 mt-2 text-sm">Total Earnings</p>
+          <h2 className="text-2xl font-bold">₹{totalEarning}</h2>
+        </div>
+        <div className="bg-white p-4 rounded-2xl shadow-sm flex items-center justify-between">
+          <div>
+            <Purse className="text-[#00ADB5]" />
+            <p className="text-gray-700 mt-2 text-sm">Wallet</p>
+            <h2 className="text-2xl text-red-500 font-bold">₹ -{Commision}</h2>
+            <h6 className="text-xs text-gray-500">Recharge Your wallet otherwise you will not get more rides</h6>
+
+          </div>
+          <div>
+            <button className="bg-[#00ADB5] text-white px-4 py-2 rounded-xl w-full mt-2">pay now</button>
+
+          </div>
+
+        </div>
+      </div>
+
+
+
 
       <div className="px-5 mt-4 grid grid-cols-2 gap-3">
         <div className="bg-white p-4 rounded-2xl shadow-sm">
           <IndianRupee className="text-[#00ADB5]" />
           <p className="text-gray-700 mt-2 text-sm">Today's Earnings</p>
-          <h2 className="text-2xl font-bold">₹{todaysEarnings}</h2>
+          <h2 className="text-2xl font-bold">₹{todayEarning}</h2>
         </div>
         <div className="bg-white p-4 rounded-2xl shadow-sm">
           <Bike className="text-[#00ADB5]" />
@@ -453,14 +520,12 @@ export default function Dashboard() {
         <h2 className="text-lg font-semibold text-gray-800 mb-3">Quick Actions</h2>
 
         <div className="space-y-3">
-          <ActionItem icon={<Clock size={22} />} label="Ride History" />
-          <div className="px-5 mt-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-2">
-              Ride History
-            </h2>
+          <ActionItem
+            icon={<Clock size={22} />}
+            label="Ride History"
+            onClick={() => navigate("/history")}
+          />
 
-            <PilotRideHistory rides={rideHistory} />
-          </div>
           <ActionItem icon={<CheckCircle size={22} />} label="Verify Documents" />
           <ActionItem icon={<LogOut size={22} />} label="Logout" onClick={handleLogout} />
         </div>
