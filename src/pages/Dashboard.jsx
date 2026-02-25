@@ -9,6 +9,10 @@ import {
   LogOut,
   CheckCircle, LocationEditIcon as LocateIcon
 } from "lucide-react";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchDashboard } from "../redux/slices/dashboardSlice";
+import  PilotRideHistory  from "./PilotRideHistory";
+
 import {
   GoogleMap,
   useLoadScript,
@@ -23,6 +27,7 @@ import logout from "../redux/slices/authSlice"
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const pilotData = JSON.parse(localStorage.getItem("data"));
   console.log("pilot data in dashboard", pilotData);
@@ -37,6 +42,16 @@ export default function Dashboard() {
   const [assignedUser, setAssignedUser] = useState(null);
   const [routeToUser, setRouteToUser] = useState(null);
 
+  const [otpInput, setOtpInput] = useState("");
+  const [rideStarted, setRideStarted] = useState(false);
+  const [rideCompleted, setRideCompleted] = useState(false);
+
+
+  const { totalRides, totalEarnings, todaysEarnings } = useSelector(
+    (state) => state.pilot
+  );
+
+  const { rideHistory } = useSelector((state) => state.pilot);
 
 
   const mapContainerStyle = {
@@ -53,6 +68,10 @@ export default function Dashboard() {
   });
   const [directions, setDirections] = useState(null);
   const mapRef = useRef();
+
+  useEffect(() => {
+    dispatch(fetchDashboard());
+  }, []);
 
 
   useEffect(() => {
@@ -76,10 +95,25 @@ export default function Dashboard() {
     });
     socket.on("pilot_ride_assigned", (data) => {
       setAssignedUser(data.user);
-      console.log("Assigned user data:", data.user);
-  
 
-      
+
+
+
+    });
+    socket.on("ride_started", () => {
+      setRideStarted(true);
+    });
+
+    socket.on("ride_completed", () => {
+      setRideCompleted(true);
+      setRideStarted(false);
+      setAssignedUser(null);
+      setRideData(null);
+      setHasRide(false);
+      setOtpInput("");
+    });
+    socket.on("dashboard_update", () => {
+      dispatch(fetchDashboard());
     });
 
 
@@ -213,9 +247,9 @@ export default function Dashboard() {
       userId: rideData.userId,
       pilotLocation
     });
-    console.log("pilotLocation sent on accept:", pilotLocation);
+
     setHasRide(false);
-    setRideData(null);
+
   };
 
   const rejectRide = () => {
@@ -233,7 +267,22 @@ export default function Dashboard() {
   if (!isLoaded) {
     return <div>Loading...</div>;
   }
+  const verifyOtp = () => {
+    if (!otpInput || !rideData?.rideId) return;
 
+    socket.emit("verify_start_otp", {
+      rideId: rideData.rideId,
+      enteredOtp: otpInput,
+      pilotId
+    });
+    console.log("OTP sent for verification:", otpInput);
+  };
+  const completeRide = () => {
+    socket.emit("complete_ride", {
+      rideId: rideData.rideId,
+      pilotId
+    });
+  };
 
   const handleLogout = () => {
     localStorage.clear();
@@ -287,38 +336,38 @@ export default function Dashboard() {
         <div className="bg-white p-4 rounded-2xl shadow-sm">
           <IndianRupee className="text-[#00ADB5]" />
           <p className="text-gray-700 mt-2 text-sm">Today's Earnings</p>
-          <h2 className="text-2xl font-bold">₹420</h2>
+          <h2 className="text-2xl font-bold">₹{todaysEarnings}</h2>
         </div>
         <div className="bg-white p-4 rounded-2xl shadow-sm">
           <Bike className="text-[#00ADB5]" />
           <p className="text-gray-700 mt-2 text-sm">Total Rides</p>
-          <h2 className="text-2xl font-bold">12</h2>
+          <h2 className="text-2xl font-bold">{totalRides}</h2>
         </div>
       </div>
 
-      {hasRide && rideData && (
-        <div className="mt-4 w-[90%] rounded-2xl overflow-hidden shadow-lg">
-          <GoogleMap
-            mapContainerStyle={mapContainerStyle}
-            zoom={12}
-            center={center}
-            onLoad={(map) => (mapRef.current = map)}
-          >
-            {directions && <DirectionsRenderer directions={directions} />}
 
-            {pilotLocation && (
-              <Marker
-                position={{
-                  lat: Number(pilotLocation.lat),
-                  lng: Number(pilotLocation.lng),
-                }}
-              />
-            )}
+      <div className="mt-4 w-[90%] rounded-2xl overflow-hidden shadow-lg">
+        <GoogleMap
+          mapContainerStyle={mapContainerStyle}
+          zoom={12}
+          center={center}
+          onLoad={(map) => (mapRef.current = map)}
+        >
+          {directions && <DirectionsRenderer directions={directions} />}
+
+          {pilotLocation && (
+            <Marker
+              position={{
+                lat: Number(pilotLocation.lat),
+                lng: Number(pilotLocation.lng),
+              }}
+            />
+          )}
 
 
 
-          </GoogleMap>
-        </div>)}
+        </GoogleMap>
+      </div>
 
       {hasRide && rideData && (
         <div className="w-[90%] mt-5 mx-auto bg-white rounded-2xl p-4 shadow-md border border-[#00ADB5]/30">
@@ -370,6 +419,34 @@ export default function Dashboard() {
         </div>
       )}
 
+      {assignedUser && !rideStarted && (
+        <div className="bg-yellow-50 p-3 rounded-xl mt-3">
+          <p className="font-semibold">Enter OTP from User</p>
+
+          <input
+            value={otpInput}
+            onChange={(e) => setOtpInput(e.target.value)}
+            placeholder="Enter OTP"
+            className="border p-2 rounded w-full mt-2"
+          />
+
+          <button
+            onClick={verifyOtp}
+            className="bg-[#00ADB5] text-white px-4 py-2 hover:bg-[#008a94] rounded mt-2 w-full"
+          >
+            Start Ride
+          </button>
+        </div>
+      )}
+      {rideStarted && !rideCompleted && (
+        <button
+          onClick={completeRide}
+          className="bg-green-600 text-white px-4 py-2 rounded mt-3 w-full"
+        >
+          Complete Ride
+        </button>
+      )}
+
 
 
       <div className="mt-8 px-5">
@@ -377,6 +454,13 @@ export default function Dashboard() {
 
         <div className="space-y-3">
           <ActionItem icon={<Clock size={22} />} label="Ride History" />
+          <div className="px-5 mt-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-2">
+              Ride History
+            </h2>
+
+            <PilotRideHistory rides={rideHistory} />
+          </div>
           <ActionItem icon={<CheckCircle size={22} />} label="Verify Documents" />
           <ActionItem icon={<LogOut size={22} />} label="Logout" onClick={handleLogout} />
         </div>
