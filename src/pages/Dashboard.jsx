@@ -273,6 +273,7 @@ export default function Dashboard() {
 
       await fetch(`${import.meta.env.VITE_BASE_URL}/push/subscribe`, {
         method: "POST",
+        credentials: "include", 
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("authToken")}`,
