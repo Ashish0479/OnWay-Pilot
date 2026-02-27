@@ -271,7 +271,7 @@ export default function Dashboard() {
         ),
       });
 
-      await fetch(`${import.meta.env.VITE_BASE_URL}/rider/save-subscription`, {
+      await fetch(`${import.meta.env.VITE_BASE_URL}/push/subscribe`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
