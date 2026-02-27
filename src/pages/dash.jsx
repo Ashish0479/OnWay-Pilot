@@ -58,6 +58,8 @@ export default function Dashboard() {
   const [otpInput, setOtpInput] = useState("");
   const [rideStarted, setRideStarted] = useState(false);
   const [rideCompleted, setRideCompleted] = useState(false);
+  const [rideAccepted, setRideAccepted] = useState(false);
+  const [pilotToPickupRoute, setPilotToPickupRoute] = useState(null);
 
 
   const { totalRides, totalEarnings, todaysEarnings, commissionDue } = useSelector(
@@ -138,6 +140,8 @@ export default function Dashboard() {
       setRideData(null);
       setHasRide(false);
       setOtpInput("");
+      setRideAccepted(false);
+      setPilotToPickupRoute(null);
     });
     socket.on("dashboard_update", () => {
       dispatch(fetchDashboard());
@@ -171,6 +175,25 @@ export default function Dashboard() {
       );
     }
   }, [rideData]);
+
+  // Route from pilot location to pickup location when ride is accepted
+  useEffect(() => {
+    if (!rideAccepted || !pilotLocation || !rideData) return;
+    
+    const service = new google.maps.DirectionsService();
+    service.route(
+      {
+        origin: { lat: pilotLocation.lat, lng: pilotLocation.lng },
+        destination: rideData.pickup.address,
+        travelMode: google.maps.TravelMode.DRIVING,
+      },
+      (result, status) => {
+        if (status === "OK" && result) {
+          setPilotToPickupRoute(result);
+        }
+      }
+    );
+  }, [rideAccepted, pilotLocation, rideData]);
 
   /* ----------------------- AUTO LOCATION (GPS) ----------------------- */
 
@@ -330,7 +353,7 @@ export default function Dashboard() {
       pilotLocation
     });
 
-    setHasRide(false);
+    setRideAccepted(true);
 
   };
 
@@ -345,6 +368,8 @@ export default function Dashboard() {
 
     setHasRide(false);
     setRideData(null);
+    setRideAccepted(false);
+    setPilotToPickupRoute(null);
   };
   if (!isLoaded) {
     return <div>Loading...</div>;
@@ -426,16 +451,14 @@ export default function Dashboard() {
           <div>
             <Purse className="text-[#00ADB5]" />
             <p className="text-gray-700 mt-2 text-sm">Commission Due</p>
-            <h2 className={`text-2xl  ${commission > 50 ? "text-red-500" : "text-green-600"} font-bold`}>₹ {commission}</h2>
-            <h2 className={commission > 50 ? "block text-red-300 text-sm mt-1" : "hidden"}>pay commission or you won't get any rides</h2>
-            <h6 className="text-xs text-gray-500">{commission > 100 ? "Pay commission to get more rides" : ""}</h6>
-
+            <h2 className={`text-2xl font-bold ${commission > 100 ? "text-red-500" : "text-green-600"}`}>₹ {commission}</h2>
+            {commission > 100 && (
+              <h6 className="text-xs text-red-500 mt-1">Pay commission to get more rides</h6>
+            )}
           </div>
           <div>
-            <button className="bg-[#00ADB5] text-white px-4 py-2 rounded-xl w-full mt-2" onClick={handlePayCommission}>pay now</button>
-
+            <button className="bg-[#00ADB5] text-white px-4 py-2 rounded-xl w-full mt-2 hover:bg-[#008a94] transition" onClick={handlePayCommission}>pay now</button>
           </div>
-
         </div>
       </div>
 
@@ -463,7 +486,11 @@ export default function Dashboard() {
           center={center}
           onLoad={(map) => (mapRef.current = map)}
         >
-          {directions && <DirectionsRenderer directions={directions} />}
+          {rideAccepted && pilotToPickupRoute ? (
+            <DirectionsRenderer directions={pilotToPickupRoute} />
+          ) : (
+            directions && <DirectionsRenderer directions={directions} />
+          )}
 
           {pilotLocation && (
             <Marker
@@ -471,96 +498,127 @@ export default function Dashboard() {
                 lat: Number(pilotLocation.lat),
                 lng: Number(pilotLocation.lng),
               }}
+              title="Your Location"
             />
           )}
-
-
-
         </GoogleMap>
       </div>
 
       {hasRide && rideData && (
         <div className="w-[90%] mt-5 mx-auto bg-white rounded-2xl p-4 shadow-md border border-[#00ADB5]/30">
-          <h3 className="font-semibold mb-2">New Ride Request</h3>
+          {rideAccepted ? (
+            <div className="flex flex-col items-center justify-center py-6">
+              <div className="mb-3">
+                <CheckCircle className="text-green-500" size={40} />
+              </div>
+              <h3 className="font-semibold text-green-600 text-lg">Ride Accepted!</h3>
+              <p className="text-gray-500 text-sm mt-2">Heading to pickup location...</p>
+              
+              <div className="mt-4 w-full border-t pt-4">
+                <div className="flex items-center mb-3">
+                  <MapPin className="text-green-600 mr-2" size={18} />
+                  <p className="text-gray-700 text-sm">
+                    <span className="font-semibold">Pickup:</span> {rideData.pickup.address}
+                  </p>
+                </div>
 
-          <div className="flex items-center mb-3">
-            <MapPin className="text-green-600 mr-2" />
-            <p className="text-gray-700 text-sm">
-              Pickup: {rideData.pickup.address}
-            </p>
-          </div>
+                <div className="flex items-center">
+                  <MapPin className="text-red-600 mr-2" size={18} />
+                  <p className="text-gray-700 text-sm">
+                    <span className="font-semibold">Drop:</span> {rideData.drop.address}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <h3 className="font-semibold mb-3 text-[#00ADB5]">🚗 New Ride Request</h3>
 
-          <div className="flex items-center mb-3">
-            <MapPin className="text-red-600 mr-2" />
-            <p className="text-gray-700 text-sm">
-              Drop: {rideData.drop.address}
-            </p>
-          </div>
+              <div className="flex items-center mb-3">
+                <MapPin className="text-green-600 mr-2" size={18} />
+                <p className="text-gray-700 text-sm">
+                  <span className="font-semibold">Pickup:</span> {rideData.pickup.address}
+                </p>
+              </div>
 
-          <div>
-            <IndianRupee className="text-gray-700 mr-2 inline" />
-            <span className="text-gray-700 font-medium">
-              Fare: ₹{rideData.fare}
-            </span>
-          </div>
+              <div className="flex items-center mb-4">
+                <MapPin className="text-red-600 mr-2" size={18} />
+                <p className="text-gray-700 text-sm">
+                  <span className="font-semibold">Drop:</span> {rideData.drop.address}
+                </p>
+              </div>
 
-          <div className="flex justify-between">
-            <button
-              onClick={acceptRide}
-              className="bg-green-600 text-white px-4 py-2 rounded-xl w-[48%]"
-            >
-              Accept
-            </button>
-            <button
-              onClick={rejectRide}
-              className="bg-red-500 text-white px-4 py-2 rounded-xl w-[48%]"
-            >
-              Reject
-            </button>
-          </div>
+              <div className="mb-4 bg-blue-50 p-3 rounded-lg">
+                <IndianRupee className="text-[#00ADB5] mr-2 inline" size={18} />
+                <span className="text-gray-700 font-semibold text-lg">
+                  Fare: ₹{rideData.fare}
+                </span>
+              </div>
+
+              <div className="flex justify-between gap-2">
+                <button
+                  onClick={acceptRide}
+                  className="bg-green-600 text-white px-4 py-3 rounded-xl w-[48%] hover:bg-green-700 transition font-semibold"
+                >
+                  ✓ Accept
+                </button>
+                <button
+                  onClick={rejectRide}
+                  className="bg-red-500 text-white px-4 py-3 rounded-xl w-[48%] hover:bg-red-600 transition font-semibold"
+                >
+                  ✕ Reject
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
       {assignedUser && (
-        <div className="bg-white p-4 rounded-xl shadow-sm w-[90%] mx-auto mt-4">
-          <p className="font-semibold text-[#00ADB5]">👤 User Details</p>
-          <p>Name: {assignedUser.name}</p>
-          <p>Phone: {assignedUser.phone}</p>
-
+        <div className="bg-white p-4 rounded-2xl shadow-sm w-[90%] mx-auto mt-4 border border-[#00ADB5]/20">
+          <p className="font-semibold text-[#00ADB5] mb-3">👤 User Details</p>
+          <div className="space-y-2">
+            <p className="text-gray-700"><span className="font-semibold">Name:</span> {assignedUser.name}</p>
+            <p className="text-gray-700"><span className="font-semibold">Phone:</span> {assignedUser.phone}</p>
+          </div>
         </div>
       )}
 
       {assignedUser && !rideStarted && (
-        <div className="bg-yellow-50 p-3 rounded-xl mt-3">
-          <p className="font-semibold">Enter OTP from User</p>
+        <div className="bg-yellow-50 p-4 rounded-2xl mt-4 w-[90%] mx-auto border border-yellow-200">
+          <p className="font-semibold text-yellow-800 mb-3">🔐 Enter OTP from User</p>
 
           <input
             value={otpInput}
             onChange={(e) => setOtpInput(e.target.value)}
-            placeholder="Enter OTP"
-            className="border p-2 rounded w-full mt-2"
+            placeholder="Enter 4-digit OTP"
+            maxLength="4"
+            type="text"
+            className="border-2 border-yellow-300 p-3 rounded-lg w-full mt-2 text-center text-2xl tracking-widest font-semibold focus:outline-none focus:border-yellow-500"
           />
 
           <button
             onClick={verifyOtp}
-            className="bg-[#00ADB5] text-white px-4 py-2 hover:bg-[#008a94] rounded mt-2 w-full"
+            className="bg-[#00ADB5] text-white px-4 py-3 hover:bg-[#008a94] rounded-lg mt-3 w-full font-semibold transition"
           >
             Start Ride
           </button>
         </div>
       )}
       {rideStarted && !rideCompleted && (
-        <button
-          onClick={completeRide}
-          className="bg-green-600 text-white px-4 py-2 rounded mt-3 w-full"
-        >
-          Complete Ride
-        </button>
+        <div className="w-[90%] mx-auto mt-4">
+          <button
+            onClick={completeRide}
+            className="bg-green-600 text-white px-4 py-4 rounded-2xl w-full font-semibold text-lg hover:bg-green-700 transition shadow-md"
+          >
+            ✓ Complete Ride
+          </button>
+        </div>
       )}
 
 
 
-      <div className="mt-8 px-5">
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">Quick Actions</h2>
+      <div className="mt-8 px-5 pb-4">
+        <h2 className="text-lg font-semibold text-gray-800 mb-3">⚡ Quick Actions</h2>
 
         <div className="space-y-3">
           <ActionItem
@@ -581,10 +639,10 @@ function ActionItem({ icon, label, onClick }) {
   return (
     <div
       onClick={onClick}
-      className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm cursor-pointer"
+      className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm cursor-pointer hover:shadow-md hover:bg-gray-50 transition"
     >
       <div className="flex items-center space-x-3">
-        {icon}
+        <div className="text-[#00ADB5]">{icon}</div>
         <p className="font-medium text-gray-700">{label}</p>
       </div>
     </div>

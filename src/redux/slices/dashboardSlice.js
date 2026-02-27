@@ -19,6 +19,7 @@ const pilotSlice = createSlice({
     totalRides: 0,
     totalEarnings: 0,
     todaysEarnings: 0,
+    commissionDue: 0,
     rideHistory: [],
     status: "idle",
   },
@@ -34,6 +35,7 @@ const pilotSlice = createSlice({
         state.totalEarnings = action.payload.totalEarnings;
         state.todaysEarnings = action.payload.todaysEarnings;
         state.rideHistory = action.payload.rideHistory;
+        state.commissionDue = action.payload.commissionDue;
       })
       .addCase(fetchDashboard.rejected, (state) => {
         state.status = "failed";
