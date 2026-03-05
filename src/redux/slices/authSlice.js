@@ -49,6 +49,108 @@ export const createAccount = createAsyncThunk(
   }
 );
 
+export const sendSignupOtp = createAsyncThunk(
+  "/auth/sendSignupOtp",
+  async (email, { rejectWithValue }) => {
+    try {
+
+      const response = await axiosInstance.post(
+        "/auth/signup/send-otp",
+        { email }
+      );
+
+      toast.success(response?.data?.message);
+
+      return response;
+
+    } catch (error) {
+
+      return rejectWithValue(
+        error.response?.data || { message: "OTP send failed" }
+      );
+
+    }
+  }
+);
+export const verifySignupOtp = createAsyncThunk(
+  "/auth/verifySignupOtp",
+  async ({ email, otp }, { rejectWithValue }) => {
+
+    try {
+
+      const response = await axiosInstance.post(
+        "/auth/signup/verify-otp",
+        { email, otp }
+      );
+
+      toast.success(response?.data?.message);
+
+      return response;
+
+    } catch (error) {
+
+      return rejectWithValue(
+        error.response?.data || { message: "OTP verify failed" }
+      );
+
+    }
+
+  }
+);
+
+export const sendOtp = createAsyncThunk(
+  '/auth/sendOtp',
+  async (email, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post('/auth/send-otp', { email:email });
+
+      toast.promise(Promise.resolve(response), {
+        success: (res) => res?.data?.message || "OTP sent successfully",
+        loading: 'Sending OTP...',
+        error: 'Ohh No!, Something went wrong. Please try again.',
+      });
+
+      return response;
+    } catch (error) {
+      console.log("Send OTP Error:", error);    
+      return rejectWithValue(
+        error.response?.data || { message: "Something went wrong" }
+      );
+    }
+  }
+);
+
+export const verifyOtp = createAsyncThunk(
+  '/auth/verifyOtp',
+  async ({ email, otp }, { rejectWithValue }) => {
+    console.log("incoming data to the thunk", email, otp);
+    try {
+      const response = await axiosInstance.post('/auth/verify-otp', { email: email, otp: otp });  
+      const token = response?.data?.data?.token;
+
+      if (token) {
+        localStorage.setItem("isLoggedIn", true);
+        localStorage.setItem("data", JSON.stringify(response?.data?.data));
+        console.log("data:", response?.data?.data);
+        localStorage.setItem("role", "pilot");
+      
+        localStorage.setItem("authToken", token);
+      }
+
+      toast.promise(Promise.resolve(response), {
+        success: (res) => res?.data?.message || "OTP verified successfully",
+        loading: 'Verifying OTP...',
+        error: 'Ohh No!, Something went wrong. Please try again.',
+      });
+
+      return response;
+    } catch (error) {
+      console.log("Verify OTP Error:", error);    
+      return rejectWithValue(
+        error.response?.data || { message: "Something went wrong" }
+      );
+    }}
+);
 
 export const login = createAsyncThunk(
   '/auth/login',
