@@ -70,7 +70,7 @@ export default function Dashboard() {
   const sortedRides = [...(rideHistory || [])].sort(
     (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
   );
-  const commission  = commissionDue
+  const commission  = Math.round(commissionDue * 100)/100;
 
 
 
