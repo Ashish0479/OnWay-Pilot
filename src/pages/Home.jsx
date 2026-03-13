@@ -38,11 +38,11 @@ export default function Home() {
       <section className="w-full bg-white mt-10 py-10 px-6 flex justify-center">
         <div className="w-full max-w-md text-center bg-gray-50 rounded-2xl p-6 shadow-sm border border-gray-200">
           
-          <h3 className="text-xl font-semibold text-gray-800">Customer?</h3>
-          <p className="text-gray-600 mt-1">Book rides using our user app</p>
+          <h3 className="text-xl font-semibold text-gray-800">Want to book a ride or delivery?</h3>
+          <p className="text-gray-600 mt-1">Book rides and deliveries using our user app</p>
 
           <button
-            onClick={() => window.location.href = "http://localhost:5173"}
+            onClick={() => window.location.href = import.meta.env.VITE_USER_APP_URL }
             className="mt-4 w-full py-3 bg-[#00ADB5] text-white rounded-xl font-medium hover:bg-[#0099A5] transition shadow"
           >
             Open User App
